@@ -63,6 +63,7 @@ class MapTile extends Region {
     final Scale scale = new Scale();
 
     public boolean isCovering() {
+        System.out.println("[JVDBG] tile "+this+" is covering for "+coveredTiles);
         return coveredTiles.size() > 0;
     }
 
@@ -85,7 +86,7 @@ class MapTile extends Region {
         this.progress = ImageRetriever.fillImage(iv, myZoom, i, j);
 
         Label l = new Label("Tile [" + myZoom + "], i = " + i + ", j = " + j);
-        getChildren().addAll(iv);//,l);
+        getChildren().addAll(iv,l);
         zl = recalculate();
         this.progress.addListener(o -> {
             if (this.progress.get() == 1.) {

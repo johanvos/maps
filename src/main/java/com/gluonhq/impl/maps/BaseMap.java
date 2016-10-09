@@ -326,14 +326,18 @@ public class BaseMap extends Group {
                     }
                     MapTile tile = new MapTile(this, nearestZoom, i, j);
                     tiles[nearestZoom].put(key, new SoftReference<>(tile));
-                    MapTile covering = getCoveringTile(tile);
-                    if (covering != null) {
-                        covering.addCovering(tile);
-                        if (!getChildren().contains(covering)) {
-                            getChildren().add(covering);
+                    MapTile covering = getCoveringTile(tile, true);
+                     System.out.println("[JVDBG] covering for maptile z=" + nearestZoom + ",i=" + i + ",j=" + j+": "+covering);
+                
+                    while (covering != null) {
+                        if (covering != null) {
+                            covering.addCovering(tile);
+                            if (!getChildren().contains(covering)) {
+                                getChildren().add(covering);
+                            }
                         }
+                        covering = getCoveringTile(covering, true);
                     }
-
                     getChildren().add(tile);
                 } else {
                     MapTile tile = ref.get();
@@ -385,6 +389,7 @@ public class BaseMap extends Group {
     }
 
     private void cleanupTiles() {
+        System.out.println("[JVDBG] START cleanup");
         logger.fine("START CLEANUP, zp = " + zoom.get());
         double zp = zoom.get();
         List<MapTile> toRemove = new LinkedList<>();
@@ -408,6 +413,8 @@ public class BaseMap extends Group {
                 } else if ((tile.getZoomLevel() < floor(zp + TIPPING)) && (!tile.isCovering()) && (!(ceil(zp) >= MAX_ZOOM))) {
                     logger.fine("not enough detailed");
                     toRemove.add(tile);
+                } else {
+                    System.out.println("[JVDBG] keep tile with zl = "+tile.getZoomLevel()+" and covering = "+tile.isCovering());
                 }
             }
         }
@@ -415,6 +422,8 @@ public class BaseMap extends Group {
         getChildren().removeAll(toRemove);
 
         logger.fine("DONE CLEANUP, #children = " + getChildren().size());
+                System.out.println("[JVDBG] DONE  cleanup, #children = " + getChildren().size());
+
     }
 
     private void clearTiles() {
@@ -435,8 +444,16 @@ public class BaseMap extends Group {
     }
 
 
-    private MapTile getCoveringTile(MapTile tile) {
+   
+    /**
+     * Retrieve the tile covering the provided tile on a lower zoom level
+     * @param tile the tile that is covered by the tile we are looking for
+     * @param usefilecache true in case we also want to search the filecache 
+     * @return 
+     */
+    private MapTile getCoveringTile(MapTile tile, boolean usefilecache) {
         int z = tile.myZoom;
+        System.out.println("[JVDBG] get covering tile for "+z+", "+tile.i+", "+tile.j);
         if (z > 0) {
             long pi = tile.i / 2;
             long pj = tile.j / 2;
@@ -449,10 +466,12 @@ public class BaseMap extends Group {
                 return ref.get();
             } else {
                 logger.fine("not tile found for " + z + ", " + pi + ", " + pj);
+                return new MapTile(this, z-1, pi, pj);
             }
         }
         return null;
     }
+
 
     /**
      * Called by the JavaFX Application Thread when a pulse is running.
