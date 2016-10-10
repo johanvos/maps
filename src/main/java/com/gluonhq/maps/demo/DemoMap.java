@@ -41,7 +41,9 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.LogManager;
+import java.util.logging.Logger;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -55,6 +57,7 @@ import javafx.scene.shape.Circle;
  */
 public class DemoMap extends Application {
 
+    private PoiLayer poiLayer;
     static {
         try {
             LogManager.getLogManager().readConfiguration( DemoMap.class.getResourceAsStream("/logging.properties") );
@@ -63,12 +66,15 @@ public class DemoMap extends Application {
         }
     }
 
+    private MapView view;
     @Override
     public void start(Stage stage) throws Exception {
         BorderPane bp = new BorderPane();
-        MapView view = new MapView();
+        view = new MapView();
         view.addLayer(positionLayer());
-        view.setZoom(3); 
+        poiLayer = myDemoLayer();
+        view.addLayer(poiLayer);
+        view.setZoom(14); 
         bp.setCenter(view);
         bp.setTop(new Label ("Gluon Maps Demo"));
         Scene scene;
@@ -80,19 +86,45 @@ public class DemoMap extends Application {
         }
         stage.setScene(scene);
         stage.show();
+        moveMe();
 //        MapPoint moscone = new MapPoint(37.7841772,-122.403751);
 //        MapPoint sun = new MapPoint(37.396256,-121.953847);
 //        view.setCenter(moscone);
 //        view.flyTo(2., sun, 2.);
     }
     
-    private MapLayer myDemoLayer () {
+    MapPoint moving = new MapPoint(50.8458,4.724); 
+    private PoiLayer myDemoLayer () {
         PoiLayer answer = new PoiLayer();
         Node icon1 = new Circle(7, Color.BLUE);
         answer.addPoint(new MapPoint(50.8458,4.724), icon1);
         Node icon2 = new Circle(7, Color.GREEN);
-        answer.addPoint(new MapPoint(37.396256,-121.953847), icon2);
+        answer.addPoint(moving, icon2);
         return answer;
+    }
+
+    private void moveMe() {
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    double d = moving.getLatitude();
+                    double lon = moving.getLongitude();
+                    d = d + Math.random() * .00005;
+                    lon = lon + Math.random() * .00005;
+                    moving.update(d, lon);
+                    poiLayer.markDirty();
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(DemoMap.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            }
+        };
+        Thread t = new Thread(r);
+        t.start();
+
     }
     
     private MapLayer positionLayer() {
@@ -102,14 +134,14 @@ public class DemoMap extends Application {
         if (positionService != null) {
             ReadOnlyObjectProperty<Position> positionProperty = positionService.positionProperty();
             Position position = positionProperty.get();
-            if (position == null) {position = new Position(50.,4.);}
+            if (position == null) {position = new Position(50.85,4.73);}
             final MapPoint mapPoint = new MapPoint(position.getLatitude(), position.getLongitude());
             answer.addPoint(mapPoint, new Circle(7, Color.RED));
-            
+            view.setCenter(mapPoint);
+
             positionProperty.addListener(e -> {
                 Position pos = positionProperty.get();
                                 System.out.println("[JVDBG] NEW POSITION "+pos);
-
                 mapPoint.update(pos.getLatitude(), pos.getLongitude());
             });
         }

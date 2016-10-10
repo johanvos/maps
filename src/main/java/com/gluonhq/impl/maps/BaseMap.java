@@ -27,6 +27,8 @@
  */
 package com.gluonhq.impl.maps;
 
+import com.gluonhq.charm.down.common.PlatformFactory;
+import com.gluonhq.charm.down.common.cache.Cache;
 import com.gluonhq.maps.MapView;
 import com.sun.javafx.tk.Toolkit;
 import javafx.beans.property.DoubleProperty;
@@ -51,12 +53,12 @@ import javafx.beans.property.ReadOnlyDoubleWrapper;
 
 /**
  *
- * The BaseMap provides the underlying maptiles.
- * On top of this, additional layers can be rendered.
+ * The BaseMap provides the underlying maptiles. On top of this, additional
+ * layers can be rendered.
  */
 public class BaseMap extends Group {
 
-    private static final Logger logger = Logger.getLogger( BaseMap.class.getName() );
+    private static final Logger logger = Logger.getLogger(BaseMap.class.getName());
 
     /**
      * When the zoom-factor is less than TIPPING below an integer, we will use
@@ -68,7 +70,8 @@ public class BaseMap extends Group {
      * The maximum zoom level this map supports.
      */
     public static final int MAX_ZOOM = 20;
-    private final Map<Long, SoftReference<MapTile>>[] tiles = new HashMap[MAX_ZOOM];
+    // private final Map<Long, SoftReference<MapTile>>[] tiles = new HashMap[MAX_ZOOM];
+    private final Cache<Long, MapTile>[] cache = new Cache[MAX_ZOOM];
 
     private double lat;
     private double lon;
@@ -79,28 +82,30 @@ public class BaseMap extends Group {
     private final ReadOnlyDoubleWrapper centerLon = new ReadOnlyDoubleWrapper();
     private final ReadOnlyDoubleWrapper centerLat = new ReadOnlyDoubleWrapper();
     private final ReadOnlyDoubleWrapper zoom = new ReadOnlyDoubleWrapper();
-    
+
     private final DoubleProperty prefCenterLon = new SimpleDoubleProperty();
     private final DoubleProperty prefCenterLat = new SimpleDoubleProperty();
     private final DoubleProperty prefZoom = new SimpleDoubleProperty();
-    
+
     private double zoomValue;
-
-
 
     public double x0, y0;
     private boolean dirty = true;
 
     private final ChangeListener<Number> resizeListener = (o, oldValue, newValue) -> markDirty();
-    private ChangeListener<Scene> sceneListener;   
+    private ChangeListener<Scene> sceneListener;
+
+    private boolean debug = true;
 
     public BaseMap() {
-        for (int i = 0; i < tiles.length; i++) {
-            tiles[i] = new HashMap<>();
+        for (int i = 0; i < cache.length; i++) {
+            //  tiles[i] = new HashMap<>();
+            cache[i] = PlatformFactory.getPlatform().getCacheManager().createCache("tiles" + i);
+
         }
         area = new Rectangle(-10, -10, 810, 610);
         area.setVisible(false);
-       
+
         prefCenterLat.addListener(o -> doSetCenter(prefCenterLat.get(), prefCenterLon.get()));
         prefCenterLon.addListener(o -> doSetCenter(prefCenterLat.get(), prefCenterLon.get()));
         prefZoom.addListener(o -> doZoom(prefZoom.get()));
@@ -109,28 +114,28 @@ public class BaseMap extends Group {
         area.heightProperty().addListener(resizeListener);
         area.translateXProperty().bind(translateXProperty().multiply(-1));
         area.translateYProperty().bind(translateYProperty().multiply(-1));
-
         if (sceneListener == null) {
             sceneListener = (o, oldScene, newScene) -> {
-                    if (newScene != null) {
-                        //TODO Do we need to unbind from previous scene?
-                        getParent().layoutBoundsProperty().addListener(e -> {
-                            area.setWidth(getParent().getLayoutBounds().getWidth());
-                            area.setHeight(getParent().getLayoutBounds().getHeight());
-                        });
-                        markDirty();
-                    }
-                    if (abortedTileLoad) {
-                        abortedTileLoad = false;
-                        doSetCenter(lat, lon);
-                    }
+                if (newScene != null) {
+                    //TODO Do we need to unbind from previous scene?
+                    getParent().layoutBoundsProperty().addListener(e -> {
+                        area.setWidth(getParent().getLayoutBounds().getWidth());
+                        area.setHeight(getParent().getLayoutBounds().getHeight());
+                    });
+                    markDirty();
+                }
+                if (abortedTileLoad) {
+                    abortedTileLoad = false;
+                    doSetCenter(lat, lon);
+                }
             };
         }
         this.sceneProperty().addListener(sceneListener);
     }
-    
+
     /**
      * Move the center of this map to the specified coordinates
+     *
      * @param lat the latitude of the new center
      * @param lon the longitude of the new center
      */
@@ -197,14 +202,15 @@ public class BaseMap extends Group {
 
     /**
      * set the zoom level of the map to the specified value
+     *
      * @param z the new zoom level
      */
     public void setZoom(double z) {
         logger.fine("setZoom called");
         prefZoom.set(z);
-        
+
     }
-    
+
     private void doZoom(double z) {
         zoom.set(z);
         doSetCenter(this.lat, this.lon);
@@ -213,9 +219,10 @@ public class BaseMap extends Group {
 
     /**
      * Only called internally when a zoom around a specific point is requested.
+     *
      * @param delta
      * @param pivotX
-     * @param pivotY 
+     * @param pivotY
      */
     public void zoom(double delta, double pivotX, double pivotY) {
         double dz = delta;// > 0 ? .1 : -.1;
@@ -252,8 +259,6 @@ public class BaseMap extends Group {
         logger.fine("after, zp = " + zoom.get() + ", tx = " + getTranslateX());
     }
 
-
-
     public Point2D getMapPoint(double lat, double lon) {
         return getMapPoint(zoom.get(), lat, lon);
     }
@@ -283,17 +288,21 @@ public class BaseMap extends Group {
     public ReadOnlyDoubleProperty centerLat() {
         return centerLat.getReadOnlyProperty();
     }
-    
+
     public ReadOnlyDoubleProperty zoom() {
         return zoom.getReadOnlyProperty();
     }
-    
+
     public DoubleProperty prefCenterLon() {
         return prefCenterLon;
     }
-    
+
     public DoubleProperty prefCenterLat() {
         return prefCenterLat;
+    }
+
+    void storeInCache (int zoom, long key, MapTile tile) {
+         cache[zoom].put(key, tile);
     }
     
     private final void loadTiles() {
@@ -315,33 +324,50 @@ public class BaseMap extends Group {
         long jmin = Math.max(0, (long) (-ty * Math.pow(2, deltaZ) / 256));
         long imax = Math.min(i_max, imin + (long) (width * Math.pow(2, deltaZ) / 256) + 3);
         long jmax = Math.min(j_max, jmin + (long) (height * Math.pow(2, deltaZ) / 256) + 3);
-        logger.fine("Zoom = " + nearestZoom + ", active = " + activeZoom + ", tx = " + tx + ", loadtiles, check i-range: " + imin + ", " + imax + " and j-range: " + jmin + ", " + jmax);
+        if (debug) {
+            System.out.println("Zoom = " + nearestZoom + ", active = " + activeZoom + ", tx = " + tx + ", loadtiles, check i-range: " + imin + ", " + imax + " and j-range: " + jmin + ", " + jmax);
+        }
         for (long i = imin; i < imax; i++) {
             for (long j = jmin; j < jmax; j++) {
                 Long key = i * i_max + j;
-                SoftReference<MapTile> ref = tiles[nearestZoom].get(key);
-                if ((ref == null) || (ref.get() == null)) {
-                    if (ref != null) {
-                        logger.fine("RECLAIMED: z=" + nearestZoom + ",i=" + i + ",j=" + j);
-                    }
+                MapTile ref = cache[nearestZoom].get(key);
+                System.out.println("[JVDBG] check cache for z = "+nearestZoom+", i = "+i+", j = "+j+": "+ref);
+                if (ref == null) {
                     MapTile tile = new MapTile(this, nearestZoom, i, j);
-                    tiles[nearestZoom].put(key, new SoftReference<>(tile));
+            //        cache[nearestZoom].put(key, tile);
                     MapTile covering = getCoveringTile(tile, true);
-                     System.out.println("[JVDBG] covering for maptile z=" + nearestZoom + ",i=" + i + ",j=" + j+": "+covering);
-                
-                    while (covering != null) {
-                        if (covering != null) {
-                            covering.addCovering(tile);
-                            if (!getChildren().contains(covering)) {
-                                getChildren().add(covering);
+                    if (debug) {
+                        System.out.println("[JVDBG] covering for maptile z=" + nearestZoom + ",i=" + i + ",j=" + j + ": " + covering);
+                    }
+                    boolean covered = false;
+                    while (!covered && (covering != null)) {
+                        covering.addCovering(tile);
+                        if (!getChildren().contains(covering)) {
+                            if (debug) {
+                                System.out.println("children didn't have it yet, now adding covering tile z = " + covering);
                             }
+                            getChildren().add(covering);
+                            covered = !covering.loading();
+                            System.out.println("covered asked for tile " + covering+", result = "+covered);
+
+                        } else {
+                            covered = true;
                         }
                         covering = getCoveringTile(covering, true);
+                        System.out.println("[JVDBG] next covering tile in chain is "+covering+", and by now covered = "+covered);
                     }
-                    getChildren().add(tile);
-                } else {
-                    MapTile tile = ref.get();
+                    if (debug) {
+                        System.out.println("[JVDBG] adding new tile " + tile);
+                    }
                     if (!getChildren().contains(tile)) {
+                        getChildren().add(tile);
+                    }
+                } else {
+                    MapTile tile = ref;
+                    if (!getChildren().contains(tile)) {
+                        if (debug) {
+                            System.out.println("[JVDBG] adding from memcache, we will add tile " + tile);
+                        }
                         getChildren().add(tile);
                     }
                 }
@@ -384,12 +410,16 @@ public class BaseMap extends Group {
      */
     private MapTile findTile(int zoom, long i, long j) {
         Long key = i * (1 << zoom) + j;
-        SoftReference<MapTile> exists = tiles[zoom].get(key);
-        return (exists == null) ? null : exists.get();
+        MapTile answer = cache[zoom].get(key);
+        return answer;
+//        SoftReference<MapTile> exists = tiles[zoom].get(key);
+//        return (exists == null) ? null : exists.get();
     }
 
     private void cleanupTiles() {
-        System.out.println("[JVDBG] START cleanup");
+        if (debug) {
+            System.out.println("[JVDBG] START cleanup");
+        }
         logger.fine("START CLEANUP, zp = " + zoom.get());
         double zp = zoom.get();
         List<MapTile> toRemove = new LinkedList<>();
@@ -399,22 +429,24 @@ public class BaseMap extends Group {
             if (child instanceof MapTile) {
                 MapTile tile = (MapTile) child;
                 boolean intersects = tile.getBoundsInParent().intersects(area.getBoundsInParent());
-                logger.fine("evaluate tile " + tile + ", is = " + intersects + ", tzoom = " + tile.getZoomLevel());
+                logger.fine("evaluate tile " + tile + ", is = " + intersects + ", tzoom = " + tile.getZoomLevel()+", tbpi = "+tile.getBoundsInParent()+", abpi = "+area.getBoundsInParent());
                 if (!intersects) {
                     logger.fine("not shown");
                     boolean loading = tile.loading();
                     logger.fine("Reap " + tile + " loading? " + loading);
-                    if (!loading) {
-                        toRemove.add(tile);
+                    if (loading) {
+                        tile.scheduleRemoval();
                     }
+                    toRemove.add(tile);
+                    
                 } else if (tile.getZoomLevel() > ceil(zp)) {
                     logger.fine("too detailed");
                     toRemove.add(tile);
                 } else if ((tile.getZoomLevel() < floor(zp + TIPPING)) && (!tile.isCovering()) && (!(ceil(zp) >= MAX_ZOOM))) {
                     logger.fine("not enough detailed");
                     toRemove.add(tile);
-                } else {
-                    System.out.println("[JVDBG] keep tile with zl = "+tile.getZoomLevel()+" and covering = "+tile.isCovering());
+                } else if (debug) {
+                    System.out.println("[JVDBG] keep tile with zl = " + tile.getZoomLevel() + " and covering = " + tile.isCovering());
                 }
             }
         }
@@ -422,7 +454,10 @@ public class BaseMap extends Group {
         getChildren().removeAll(toRemove);
 
         logger.fine("DONE CLEANUP, #children = " + getChildren().size());
-                System.out.println("[JVDBG] DONE  cleanup, #children = " + getChildren().size());
+        if (debug) {
+            System.out.println("[JVDBG] after cleanup, children = "+getChildren());
+            System.out.println("[JVDBG] DONE  cleanup, #children = " + getChildren().size());
+        }
 
     }
 
@@ -436,47 +471,55 @@ public class BaseMap extends Group {
             }
         }
         getChildren().removeAll(children);
-
-        for (int i = 0; i < tiles.length; i++) {
-            tiles[i].clear();
+// for (int i = 0; i < tiles.length; i++) {
+//            tiles[i].clear();
+//        }
+        for (int i = 0; i < cache.length; i++) {
+            cache[i].removeAll();
         }
 
     }
 
-
-   
     /**
      * Retrieve the tile covering the provided tile on a lower zoom level
+     *
      * @param tile the tile that is covered by the tile we are looking for
-     * @param usefilecache true in case we also want to search the filecache 
-     * @return 
+     * @param usefilecache true in case we also want to search the filecache
+     * @return
      */
     private MapTile getCoveringTile(MapTile tile, boolean usefilecache) {
         int z = tile.myZoom;
-        System.out.println("[JVDBG] get covering tile for "+z+", "+tile.i+", "+tile.j);
+        if (debug) {
+            System.out.println("[JVDBG] get covering tile for " + z + ", " + tile.i + ", " + tile.j);
+        }
         if (z > 0) {
             long pi = tile.i / 2;
             long pj = tile.j / 2;
             long i_max = 1 << (z - 1);
             Long key = pi * i_max + pj;
             // LongTuple it = new LongTuple(i,j);
-            SoftReference<MapTile> ref = tiles[z - 1].get(key);
-            if (ref != null) {
-                logger.fine("[JVDBG] COVERING TILE FOUND!");
-                return ref.get();
+            MapTile candidate = cache[z - 1].get(key);
+            if (candidate != null) {
+                return candidate;
             } else {
-                logger.fine("not tile found for " + z + ", " + pi + ", " + pj);
-                return new MapTile(this, z-1, pi, pj);
+                return new MapTile(this, z - 1, pi, pj);
             }
+//            SoftReference<MapTile> ref = tiles[z - 1].get(key);
+//            if (ref != null) {
+//                logger.fine("[JVDBG] COVERING TILE FOUND!");
+//                return ref.get();
+//            } else {
+//                logger.fine("not tile found for " + z + ", " + pi + ", " + pj);
+//                return new MapTile(this, z-1, pi, pj);
+//            }
         }
         return null;
     }
 
-
     /**
-     * Called by the JavaFX Application Thread when a pulse is running.
-     * In case the dirty flag has been set, we know that something has changed
-     * and we need to reload/clean the tiles.
+     * Called by the JavaFX Application Thread when a pulse is running. In case
+     * the dirty flag has been set, we know that something has changed and we
+     * need to reload/clean the tiles.
      */
     @Override
     protected void layoutChildren() {
@@ -486,26 +529,26 @@ public class BaseMap extends Group {
         }
         super.layoutChildren();
     }
-    
+
     private void calculateCenterCoords() {
-        double x = ((MapView)this.getParent()).getWidth()/2-this.getTranslateX();
-        double y = ((MapView)this.getParent()).getHeight()/2 - this.getTranslateY();
+        double x = ((MapView) this.getParent()).getWidth() / 2 - this.getTranslateX();
+        double y = ((MapView) this.getParent()).getHeight() / 2 - this.getTranslateY();
         double z = zoom.get();
-        double latrad = Math.PI - (2.0 * Math.PI * y) / (Math.pow(2, z)*256.);
+        double latrad = Math.PI - (2.0 * Math.PI * y) / (Math.pow(2, z) * 256.);
         double mlat = Math.toDegrees(Math.atan(Math.sinh(latrad)));
-        double mlon = x / (256*Math.pow(2, z)) * 360 - 180;
+        double mlon = x / (256 * Math.pow(2, z)) * 360 - 180;
         centerLon.set(mlon);
         centerLat.set(mlat);
     }
-    
+
     /**
-     * When something changes that would lead to a change in UI representation 
-     * (e.g. map is dragged or zoomed), this method should be called.
-     * This method will NOT update the map immediately, but it will set a 
-     * flag and request a next pulse. 
-     * This is much more performant than redrawing the map on each input event.
+     * When something changes that would lead to a change in UI representation
+     * (e.g. map is dragged or zoomed), this method should be called. This
+     * method will NOT update the map immediately, but it will set a flag and
+     * request a next pulse. This is much more performant than redrawing the map
+     * on each input event.
      */
-    private void markDirty() {
+    protected void markDirty() {
         this.dirty = true;
         calculateCenterCoords();
         this.setNeedsLayout(true);

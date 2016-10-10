@@ -45,6 +45,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.beans.property.SimpleDoubleProperty;
 
 /**
  *
@@ -83,7 +84,7 @@ public class ImageRetriever {
     static ReadOnlyDoubleProperty fillImage(ImageView imageView, int zoom, long i, long j) {
         Image image = fromFileCache(zoom, i, j);
         if (image == null) {
-            String urlString = host + zoom + "/" + i + "/" + j + ".png";
+            String urlString = "foo" + host + zoom + "/" + i + "/" + j + ".png";
             if (hasFileCache) {
                 Task<Object> task = new Task() {
                     @Override
@@ -94,8 +95,18 @@ public class ImageRetriever {
                 };
                 Thread t = new Thread(task);
                 t.start();
-            }
+            } 
+            try {
             image = new Image(urlString, true);
+            }
+            catch (Exception e) {
+                System.out.println("[JVDBG] Problem retrieving image with this url: "+urlString+" for zoom = "+zoom+", i= "+i+", j = "+j);
+              //  e.printStackTrace();
+            }
+        }
+        if (image == null) {
+            System.out.println("[JVDBG] we will never be able to complete this for zoom = "+zoom+", i= "+i+", j = "+j);
+            return new SimpleDoubleProperty(0.);
         }
         imageView.setImage(image);
         return image.progressProperty();
@@ -117,7 +128,8 @@ public class ImageRetriever {
         String tag = zoom + File.separator + i + File.separator + j + ".png";
         File f = new File(cacheRoot, tag);
         if (f.exists()) {
-            Image answer = new Image(f.toURI().toString(), true);
+            Image answer = new Image(f.toURI().toString());//, true);
+            System.out.println("[JVDBG] successfully got image from filecache");
             return answer;
         }
         return null;
@@ -160,7 +172,7 @@ public class ImageRetriever {
         }
 
         public void cacheImage(String url, int zoom, long i, long j) {
-            String key = url + ";" + zoom + "/" + i + "/" + j;
+            String key = "foo" + url + ";" + zoom + "/" + i + "/" + j;
             synchronized (offered) {
                 if (!offered.contains(key)) {
                     offered.add(key);
@@ -187,7 +199,7 @@ public class ImageRetriever {
                         fos.close();
                     }
                 }
-            } catch (IOException ex) {
+            } catch (Exception ex) {
                 logger.log(Level.SEVERE, null, ex);
             }
         }

@@ -81,7 +81,7 @@ public class MapLayer extends Parent {
      * has changed. It will set the <code>dirty</code> flag, and it will
      * request the layer to be reconsidered during the next pulse.
      */
-    protected void markDirty() {
+    public void markDirty() {
         this.dirty = true;
         this.requestLayout();
     }
