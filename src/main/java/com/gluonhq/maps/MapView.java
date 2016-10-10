@@ -83,14 +83,14 @@ public class MapView extends Region {
     
     private void registerInputListeners() {
         setOnMousePressed(t -> {
-            System.out.println("Mouse pressed, zooming = "+zooming);
+       //     System.out.println("Mouse pressed, zooming = "+zooming);
             if (zooming) return;
             baseMap.x0 = t.getX();
             baseMap.y0 = t.getY();
             centerPoint = null; // once the user starts moving, we don't track the center anymore.
         });
         setOnMouseDragged(t -> {
-            System.out.println("Mouse dragged, zooming = "+zooming);
+       //     System.out.println("Mouse dragged, zooming = "+zooming);
             if (zooming) return;
             baseMap.moveX(baseMap.x0 - t.getX());
             baseMap.moveY(baseMap.y0 - t.getY());

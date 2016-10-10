@@ -95,7 +95,7 @@ public class BaseMap extends Group {
     private final ChangeListener<Number> resizeListener = (o, oldValue, newValue) -> markDirty();
     private ChangeListener<Scene> sceneListener;
 
-    private boolean debug = true;
+    private boolean debug = false;
 
     public BaseMap() {
         for (int i = 0; i < cache.length; i++) {
@@ -302,6 +302,7 @@ public class BaseMap extends Group {
     }
 
     void storeInCache (int zoom, long key, MapTile tile) {
+        System.out.println("store in cache! ");
          cache[zoom].put(key, tile);
     }
     
@@ -331,7 +332,7 @@ public class BaseMap extends Group {
             for (long j = jmin; j < jmax; j++) {
                 Long key = i * i_max + j;
                 MapTile ref = cache[nearestZoom].get(key);
-                System.out.println("[JVDBG] check cache for z = "+nearestZoom+", i = "+i+", j = "+j+": "+ref);
+              //  System.out.println("[JVDBG] check cache for z = "+nearestZoom+", i = "+i+", j = "+j+": "+ref);
                 if (ref == null) {
                     MapTile tile = new MapTile(this, nearestZoom, i, j);
             //        cache[nearestZoom].put(key, tile);
@@ -348,13 +349,13 @@ public class BaseMap extends Group {
                             }
                             getChildren().add(covering);
                             covered = !covering.loading();
-                            System.out.println("covered asked for tile " + covering+", result = "+covered);
+                      //      System.out.println("covered asked for tile " + covering+", result = "+covered);
 
                         } else {
                             covered = true;
                         }
                         covering = getCoveringTile(covering, true);
-                        System.out.println("[JVDBG] next covering tile in chain is "+covering+", and by now covered = "+covered);
+                   //     System.out.println("[JVDBG] next covering tile in chain is "+covering+", and by now covered = "+covered);
                     }
                     if (debug) {
                         System.out.println("[JVDBG] adding new tile " + tile);

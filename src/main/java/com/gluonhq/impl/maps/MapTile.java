@@ -92,8 +92,8 @@ class MapTile extends Region {
         iv.setMouseTransparent(true);
         this.progress = ImageRetriever.fillImage(iv, myZoom, i, j);
 
-        Label l = new Label("Tile [" + myZoom + "], i = " + i + ", j = " + j);
-        getChildren().addAll(iv,l);
+      // Label l = new Label("Tile [" + myZoom + "], i = " + i + ", j = " + j);
+        getChildren().addAll(iv);//,l);
         zl = recalculate();
         this.progressListener = o -> {
             if (this.progress.get() == 1.) {
@@ -103,6 +103,10 @@ class MapTile extends Region {
             }
         };
         this.progress.addListener(progressListener);
+        if (this.progress.get() == 1d) {
+                            baseMap.storeInCache(myZoom, key, this);
+
+        }
         baseMap.zoom().addListener(new WeakInvalidationListener(zl));
         baseMap.translateXProperty().addListener(new WeakInvalidationListener(zl));
         baseMap.translateYProperty().addListener(new WeakInvalidationListener(zl));
