@@ -301,11 +301,11 @@ public class BaseMap extends Group {
         return prefCenterLat;
     }
 
-    void storeInCache (int zoom, long key, MapTile tile) {
-        System.out.println("store in cache! ");
-         cache[zoom].put(key, tile);
+    void storeInCache(int zoom, long key, MapTile tile) {
+        MapTile orig = cache[zoom].get(key);
+        cache[zoom].put(key, tile);
     }
-    
+
     private final void loadTiles() {
         logger.fine("[JVDBG] loadTiles");
         if (getScene() == null) {
@@ -331,46 +331,39 @@ public class BaseMap extends Group {
         for (long i = imin; i < imax; i++) {
             for (long j = jmin; j < jmax; j++) {
                 Long key = i * i_max + j;
-                MapTile ref = cache[nearestZoom].get(key);
-              //  System.out.println("[JVDBG] check cache for z = "+nearestZoom+", i = "+i+", j = "+j+": "+ref);
-                if (ref == null) {
-                    MapTile tile = new MapTile(this, nearestZoom, i, j);
-            //        cache[nearestZoom].put(key, tile);
-                    MapTile covering = getCoveringTile(tile, true);
-                    if (debug) {
-                        System.out.println("[JVDBG] covering for maptile z=" + nearestZoom + ",i=" + i + ",j=" + j + ": " + covering);
-                    }
-                    boolean covered = false;
-                    while (!covered && (covering != null)) {
-                        covering.addCovering(tile);
-                        if (!getChildren().contains(covering)) {
-                            if (debug) {
-                                System.out.println("children didn't have it yet, now adding covering tile z = " + covering);
-                            }
-                            getChildren().add(covering);
-                            covered = !covering.loading();
-                      //      System.out.println("covered asked for tile " + covering+", result = "+covered);
-
-                        } else {
-                            covered = true;
-                        }
-                        covering = getCoveringTile(covering, true);
-                   //     System.out.println("[JVDBG] next covering tile in chain is "+covering+", and by now covered = "+covered);
-                    }
-                    if (debug) {
-                        System.out.println("[JVDBG] adding new tile " + tile);
-                    }
+                MapTile tile = cache[nearestZoom].get(key);
+                //  System.out.println("[JVDBG] check cache for z = "+nearestZoom+", i = "+i+", j = "+j+": "+ref);
+                if (tile != null) {
+                    // we already have this tile, and it is fully loaded 
+                    // (as we only add tiles to the cache ofter the image is loaded
+                    // we can safely add it to the children.
                     if (!getChildren().contains(tile)) {
                         getChildren().add(tile);
                     }
                 } else {
-                    MapTile tile = ref;
+                    tile = new MapTile(this, nearestZoom, i, j);
                     if (!getChildren().contains(tile)) {
-                        if (debug) {
-                            System.out.println("[JVDBG] adding from memcache, we will add tile " + tile);
-                        }
                         getChildren().add(tile);
                     }
+                    boolean covered = !tile.loading();
+                    MapTile covering = null;
+                    if (!covered) covering = getCoveringTile(tile, true);
+
+                    // in case the tile is already loaded (e.g. it comes from filecase)
+                    // we don't need to check for covering tiles.
+                    while (!covered && (covering != null)) {
+                        covering.addCovering(tile);
+                        if (!getChildren().contains(covering)) {
+                            getChildren().add(covering);
+                            covered = !covering.loading();
+                        } else {
+                            covered = true;
+                        }
+                        tile = covering;
+                        covering = getCoveringTile(covering, true);
+                    }
+
+                   
                 }
             }
         }
@@ -430,7 +423,7 @@ public class BaseMap extends Group {
             if (child instanceof MapTile) {
                 MapTile tile = (MapTile) child;
                 boolean intersects = tile.getBoundsInParent().intersects(area.getBoundsInParent());
-                logger.fine("evaluate tile " + tile + ", is = " + intersects + ", tzoom = " + tile.getZoomLevel()+", tbpi = "+tile.getBoundsInParent()+", abpi = "+area.getBoundsInParent());
+                logger.fine("evaluate tile " + tile + ", is = " + intersects + ", tzoom = " + tile.getZoomLevel() + ", tbpi = " + tile.getBoundsInParent() + ", abpi = " + area.getBoundsInParent());
                 if (!intersects) {
                     logger.fine("not shown");
                     boolean loading = tile.loading();
@@ -439,7 +432,7 @@ public class BaseMap extends Group {
                         tile.scheduleRemoval();
                     }
                     toRemove.add(tile);
-                    
+
                 } else if (tile.getZoomLevel() > ceil(zp)) {
                     logger.fine("too detailed");
                     toRemove.add(tile);
@@ -456,7 +449,7 @@ public class BaseMap extends Group {
 
         logger.fine("DONE CLEANUP, #children = " + getChildren().size());
         if (debug) {
-            System.out.println("[JVDBG] after cleanup, children = "+getChildren());
+            System.out.println("[JVDBG] after cleanup, children = " + getChildren());
             System.out.println("[JVDBG] DONE  cleanup, #children = " + getChildren().size());
         }
 

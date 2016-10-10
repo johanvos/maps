@@ -84,7 +84,7 @@ public class ImageRetriever {
     static ReadOnlyDoubleProperty fillImage(ImageView imageView, int zoom, long i, long j) {
         Image image = fromFileCache(zoom, i, j);
         if (image == null) {
-            String urlString = "foo" + host + zoom + "/" + i + "/" + j + ".png";
+            String urlString =  host + zoom + "/" + i + "/" + j + ".png";
             if (hasFileCache) {
                 Task<Object> task = new Task() {
                     @Override
@@ -172,7 +172,7 @@ public class ImageRetriever {
         }
 
         public void cacheImage(String url, int zoom, long i, long j) {
-            String key = "foo" + url + ";" + zoom + "/" + i + "/" + j;
+            String key =  url + ";" + zoom + "/" + i + "/" + j;
             synchronized (offered) {
                 if (!offered.contains(key)) {
                     offered.add(key);

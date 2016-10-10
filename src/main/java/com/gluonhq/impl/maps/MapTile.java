@@ -104,8 +104,7 @@ class MapTile extends Region {
         };
         this.progress.addListener(progressListener);
         if (this.progress.get() == 1d) {
-                            baseMap.storeInCache(myZoom, key, this);
-
+            baseMap.storeInCache(myZoom, key, this);
         }
         baseMap.zoom().addListener(new WeakInvalidationListener(zl));
         baseMap.translateXProperty().addListener(new WeakInvalidationListener(zl));
