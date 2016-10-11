@@ -126,11 +126,15 @@ public class ImageRetriever {
             return null;
         }
         String tag = zoom + File.separator + i + File.separator + j + ".png";
-        File f = new File(cacheRoot, tag);
-        if (f.exists()) {
-            Image answer = new Image(f.toURI().toString());//, true);
-            System.out.println("[JVDBG] successfully got image from filecache");
-            return answer;
+        try {
+            File f = new File(cacheRoot, tag);
+            if (f.exists()) {
+                Image answer = new Image(f.toURI().toString());//, true);
+                System.out.println("[JVDBG] successfully got image from filecache");
+                return answer;
+            }
+        } catch (Exception e) {
+            logger.warning("Error loading file from file cache!");
         }
         return null;
     }

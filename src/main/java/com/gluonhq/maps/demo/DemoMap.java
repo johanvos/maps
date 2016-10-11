@@ -123,7 +123,7 @@ public class DemoMap extends Application {
                     moving.update(d, lon);
                     poiLayer.markDirty();
                     try {
-                        Thread.sleep(100);
+                        Thread.sleep(200);
                     } catch (InterruptedException ex) {
                         Logger.getLogger(DemoMap.class.getName()).log(Level.SEVERE, null, ex);
                     }
