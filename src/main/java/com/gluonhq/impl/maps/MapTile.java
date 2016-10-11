@@ -75,7 +75,7 @@ class MapTile extends Region {
 
     // final Image image;
     MapTile(BaseMap baseMap, int nearestZoom, long i, long j) {
-       if (dbg) System.out.println("[JVDBG] create maptile, address = "+super.toString());
+      System.out.println("[JVDBG] create maptile, address = "+super.toString());
         this.baseMap = baseMap;
         this.myZoom = nearestZoom;
         this.i = i;

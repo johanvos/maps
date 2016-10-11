@@ -41,12 +41,16 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -96,10 +100,14 @@ public class DemoMap extends Application {
     MapPoint moving = new MapPoint(50.8458,4.724); 
     private PoiLayer myDemoLayer () {
         PoiLayer answer = new PoiLayer();
-        Node icon1 = new Circle(7, Color.BLUE);
+        InputStream is1 = DemoMap.class.getResourceAsStream("/waypoint3.png");
+    //  Node icon1 = new Circle(7, Color.BLUE);
+        Image im1 = new Image (is1);
+        ImageView icon1 = new ImageView(im1);
         answer.addPoint(new MapPoint(50.8458,4.724), icon1);
         Node icon2 = new Circle(7, Color.GREEN);
-        answer.addPoint(moving, icon2);
+        InputStream is2 = DemoMap.class.getResourceAsStream("/airplane3.png");
+        answer.addPoint(moving, new ImageView(new Image(is2)));
         return answer;
     }
 
@@ -136,7 +144,9 @@ public class DemoMap extends Application {
             Position position = positionProperty.get();
             if (position == null) {position = new Position(50.85,4.73);}
             final MapPoint mapPoint = new MapPoint(position.getLatitude(), position.getLongitude());
-            answer.addPoint(mapPoint, new Circle(7, Color.RED));
+            InputStream is = DemoMap.class.getResourceAsStream("/compass3.png");
+            
+            answer.addPoint(mapPoint, new ImageView(new Image(is)));
             view.setCenter(mapPoint);
 
             positionProperty.addListener(e -> {

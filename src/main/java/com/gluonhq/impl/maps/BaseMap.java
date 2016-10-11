@@ -302,6 +302,7 @@ public class BaseMap extends Group {
     }
 
     void storeInCache(int zoom, long key, MapTile tile) {
+        System.out.println("store in cache");
         MapTile orig = cache[zoom].get(key);
         cache[zoom].put(key, tile);
     }
