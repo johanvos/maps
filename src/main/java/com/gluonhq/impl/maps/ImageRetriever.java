@@ -97,7 +97,7 @@ public class ImageRetriever {
                 t.start();
             } 
             try {
-            image = new Image(urlString, true);
+                image = new Image(urlString, true);
             }
             catch (Exception e) {
                 System.out.println("[JVDBG] Problem retrieving image with this url: "+urlString+" for zoom = "+zoom+", i= "+i+", j = "+j);
@@ -109,6 +109,7 @@ public class ImageRetriever {
             return new SimpleDoubleProperty(0.);
         }
         imageView.setImage(image);
+        
         return image.progressProperty();
     }
 
@@ -130,7 +131,8 @@ public class ImageRetriever {
             File f = new File(cacheRoot, tag);
             if (f.exists()) {
                 Image answer = new Image(f.toURI().toString());//, true);
-                System.out.println("[JVDBG] successfully got image from filecache");
+                
+                System.out.println("[JVDBG] successfully got image from filecache, w = "+answer.getWidth()+", "+answer.getHeight()+", fs = "+f.length());
                 return answer;
             }
         } catch (Exception e) {
@@ -204,6 +206,7 @@ public class ImageRetriever {
                     }
                 }
             } catch (Exception ex) {
+                System.out.println("[JVDBG] doCache in ImageRetriever got exception");
                 logger.log(Level.SEVERE, null, ex);
             }
         }

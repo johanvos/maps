@@ -72,10 +72,11 @@ class MapTile extends Region {
     private final InvalidationListener zl;
     private final InvalidationListener progressListener;
     private ReadOnlyDoubleProperty progress;
-
+    private ImageView iv;
+    
     // final Image image;
     MapTile(BaseMap baseMap, int nearestZoom, long i, long j) {
-      System.out.println("[JVDBG] create maptile, address = "+super.toString());
+        System.out.println("[JVDBG] create maptile: "+nearestZoom+","+i+","+j+", address = "+super.toString());
         this.baseMap = baseMap;
         this.myZoom = nearestZoom;
         this.i = i;
@@ -88,7 +89,7 @@ class MapTile extends Region {
         getTransforms().add(scale);
         debug("[JVDBG] load image [" + myZoom + "], i = " + i + ", j = " + j);
 
-        ImageView iv = new ImageView();
+        iv = new ImageView();
         iv.setMouseTransparent(true);
         this.progress = ImageRetriever.fillImage(iv, myZoom, i, j);
 
@@ -98,23 +99,25 @@ class MapTile extends Region {
         this.progressListener = o -> {
             if (this.progress.get() == 1.) {
                 debug("[JVDBG] got image  [" + myZoom + "], i = " + i + ", j = " + j);
-                baseMap.storeInCache(myZoom, key, this);
+           //     baseMap.storeInCache(myZoom, key, this);
                 this.setNeedsLayout(true);
             }
         };
         this.progress.addListener(progressListener);
-        if (this.progress.get() == 1d) {
-            baseMap.storeInCache(myZoom, key, this);
-        }
         baseMap.zoom().addListener(new WeakInvalidationListener(zl));
         baseMap.translateXProperty().addListener(new WeakInvalidationListener(zl));
         baseMap.translateYProperty().addListener(new WeakInvalidationListener(zl));
         calculatePosition();
         this.setMouseTransparent(true);
         debug("[JVDBG] created maptile "+this);
-    }
+        baseMap.storeInCache(myZoom, key, this);
+        System.out.println("[JVDBG] created maptile: "+nearestZoom+","+i+","+j+", address = "+super.toString()+", loading = "+loading());
 
+    }
+    
     public boolean loading() {
+        if (iv.getImage() ==null) return true;
+        if (iv.getImage().isError()) return true;
         return !(progress.greaterThanOrEqualTo(1.)).get();
     }
 
@@ -171,8 +174,13 @@ class MapTile extends Region {
             @Override
             public void invalidated(Observable o) {
                 if (child.progress.get() >= 1.0d) {
+                    if (child.iv.getImage().isError()) {
+                        System.out.println("[JVDBG] PROGRESS is 1 but we also have an error!");
+                        return;
+                    }
                     MapTile.this.coveredTiles.remove(child);
-                    debug("[JVDBG] Tile "+child+" is now loaded, remove from coveredTiles for "+MapTile.this);
+                    System.out.println("[JVDBG] Tile "+child+" is now loaded, remove from coveredTiles for "+MapTile.this);
+           //         Thread.dumpStack();
                     child.progress.removeListener(this);
                     MapTile.this.baseMap.markDirty();
                 }

@@ -302,7 +302,6 @@ public class BaseMap extends Group {
     }
 
     void storeInCache(int zoom, long key, MapTile tile) {
-        System.out.println("store in cache");
         MapTile orig = cache[zoom].get(key);
         cache[zoom].put(key, tile);
     }
@@ -334,7 +333,7 @@ public class BaseMap extends Group {
                 Long key = i * i_max + j;
                 MapTile tile = cache[nearestZoom].get(key);
                 //  System.out.println("[JVDBG] check cache for z = "+nearestZoom+", i = "+i+", j = "+j+": "+ref);
-                if (tile != null) {
+                if ((tile != null) && (!tile.loading())){
                     // we already have this tile, and it is fully loaded 
                     // (as we only add tiles to the cache ofter the image is loaded
                     // we can safely add it to the children.
@@ -342,7 +341,9 @@ public class BaseMap extends Group {
                         getChildren().add(tile);
                     }
                 } else {
-                    tile = new MapTile(this, nearestZoom, i, j);
+                    if (tile == null) {
+                        tile = new MapTile(this, nearestZoom, i, j);
+                    }
                     if (!getChildren().contains(tile)) {
                         getChildren().add(tile);
                     }
@@ -354,14 +355,18 @@ public class BaseMap extends Group {
                     // we don't need to check for covering tiles.
                     while (!covered && (covering != null)) {
                         covering.addCovering(tile);
+
+                        System.out.println("[JVDBG] we don't have tile "+tile+
+                            " yet, so we find a covering tile. candidate = "+covering+" with covered = "+
+                            !covering.loading()+" and visible = "+covering.isVisible()+" and covering = "+covering.isCovering());
                         if (!getChildren().contains(covering)) {
                             getChildren().add(covering);
-                            covered = !covering.loading();
-                        } else {
-                            covered = true;
                         }
+                        covered = !covering.loading();
+               
                         tile = covering;
                         covering = getCoveringTile(covering, true);
+                        System.out.println("[JVDBG] covered is now "+covered+" and next candidate is "+covering);
                     }
 
                    
@@ -438,10 +443,10 @@ public class BaseMap extends Group {
                     logger.fine("too detailed");
                     toRemove.add(tile);
                 } else if ((tile.getZoomLevel() < floor(zp + TIPPING)) && (!tile.isCovering()) && (!(ceil(zp) >= MAX_ZOOM))) {
-                    logger.fine("not enough detailed");
+                    logger.fine("not enough detailed, covering for "+tile+" is "+tile.isCovering());
                     toRemove.add(tile);
                 } else if (debug) {
-                    System.out.println("[JVDBG] keep tile with zl = " + tile.getZoomLevel() + " and covering = " + tile.isCovering());
+                    logger.fine("[JVDBG] keep tile with zl = " + tile.getZoomLevel() + " and covering = " + tile.isCovering());
                 }
             }
         }
